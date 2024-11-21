@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat with Gemini AI</title>
+
+    <!-- google fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet" />
+
+    <!-- google icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- JQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Open Sans", sans-serif;
+            background-color: #121C2A;
+            color: #E0E0E0;
+            padding: 0% 25%;
+            height: 100vh;
+            /* overflow: hidden; Hide the scrollbar on the body */
+        }
+
+        .content-container {
+            height: calc(100vh - 70px);
+            /* Adjust this height based on the prompt-container height */
+            overflow: auto;
+            /* Allow scrolling */
+            padding-bottom: 20px;
+            /* Prevent content from being hidden behind the prompt */
+        }
+
+        .prompt-container {
+
+            background-color: #334155;
+            border: 0px solid #A0A0A0;
+            padding: 5px 20px 5px 20px;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            border-radius: 5px;
+            /* position: fixed; */
+            /* bottom: 0; */
+            width: calc(100% - 55px - 10px + 22px + 10px);
+            margin-bottom: 20px;
+            margin-left: -10px;
+            color: #121C2A;
+        }
+
+        .bottom-message {
+            /* position: fixed;
+            bottom: 0; */
+            margin-bottom: 10px;
+            font-size: 11px;
+            text-align: center;
+            font-weight: 400;
+            width: calc(100%);
+            /* display: none; */
+        }
+
+        .send-btn {
+            margin-left: auto;
+            cursor: pointer;
+            color: #E0E0E0;
+            background-color: transparent;
+            border: 0px solid red;
+        }
+
+        .prompt-box {
+            background-color: #334155;
+            padding: 12px 0px;
+            margin-right: 20px;
+            border: 0px solid red;
+            outline: none;
+            font-family: "Open Sans", sans-serif;
+            color: #E0E0E0;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .prompt-box::placeholder {
+            color: #A0A0A0;
+        }
+
+        .header-container {
+
+            position: fixed;
+            top: 0;
+            margin-top: 0px;
+            padding: 30px 0px 0px 0px;
+            width: calc(100% - 50% + 4px);
+            background-color: #121C2A;
+        }
+
+        .header {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 15px;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+            color: #E0E0E0;
+        }
+
+        .status {
+            margin-left: auto;
+            font-size: 12px;
+            padding: 10px 15px;
+            border: 0px solid #61DAFB;
+            border-radius: 5px;
+            background-color: #61DAFB;
+            margin-right: -5px;
+            cursor: pointer;
+            color: #121C2A;
+        }
+
+        .prompt-main-container {
+            display: flex;
+        }
+
+        .prompt-shower {
+            background-color: #1F2937;
+            margin-top: 20px;
+            padding: 25px 30px;
+            /* width: calc(100%); */
+            margin-left: auto;
+            margin-right: -20px;
+            border-radius: 5px;
+            display: flex;
+            padding-bottom: 15px;
+        }
+
+        .by {
+            font-size: 14px;
+            font-weight: bold;
+            color: #61DAFB;
+            margin-bottom: 10px;
+        }
+
+        .task {
+            font-size: 14px;
+            color: #E0E0E0;
+            margin-left: 10px;
+        }
+
+        .process-main-container {
+            display: flex;
+        }
+
+        .process-shower {
+            background-color: #1F2937;
+            margin-top: 20px;
+            ;
+            padding: 25px 30px;
+            /* width: calc(100%); */
+            margin-right: auto;
+            margin-right: -20px;
+            border-radius: 5px;
+            display: flex;
+            padding-bottom: 15px;
+        }
+
+        .by-process {
+            color: yellowgreen;
+            font-weight: bold;
+            font-size: 14px;
+            padding-bottom: 15px;
+        }
+
+        .container-messages {
+            padding-bottom: 150px;
+        }
+
+        .footer {
+            padding-top: 20px;
+            position: fixed;
+            bottom: 0;
+            background-color: #121C2A;
+            width: calc(100% - 50% + 5px - 10px);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 10px 10px 10px;
+        }
+
+        .flashing-text {
+            font-size: 20px;
+            color: #A0A0A0;
+            /* React blue color */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: calc(100% + 10px);
+            margin-top: 180px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="screen-container">
+
+        <div class="header-container">
+            <div class="header">
+                <div class="logo">File Agent</div>
+                <div class="status" title="Status">Ready to Listen</div>
+            </div>
+            <hr style="border:3px solid #334155;margin-bottom: 20px; border-radius: 50px; width: 100px;">
+        </div>
+
+        <div class="marginer" style="height: 120px;"></div>
+
+        <div class="flashing-text" id="flashText">Hello, Buddy!</div>
+
+        <div class="container-messages">
+
+        </div>
+
+        <div class="footer">
+            <div class="prompty">
+                <form method="POST" class="prompt-container" id="chat-form" style="height: 60px;">
+                    <input type="text" name="user_input" id="prompt" class="prompt-box"
+                        placeholder="Type any task to perform on file system" autocomplete="off">
+                    <button type="submit" class="send-btn material-icons" title="Perform a Task."
+                        style="font-size: 18px;">send</button>
+                </form>
+            </div>
+            <div class="bottom-message">*Using Gemini API. Created with passion for Automation. By siddhant and team.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- <h1>Chat with Gemini AI</h1>
+
+    Form for user input
+    <form action="/" method="POST">
+        <textarea name="user_input" placeholder="Enter your message..."></textarea><br><br>
+        <input type="submit" value="Send">
+    </form> -->
+
+    
+</body>
+
+</html>
+
+<script>
+    document.getElementById("prompt").focus();
+    window.onload = function () {
+        // Scroll to a specific position (e.g., 1000 pixels down)
+        window.scrollTo({
+            top: 1000, // Change this value to your desired scroll position
+            behavior: 'smooth' // Smooth scrolling
+        });
+
+        // Alternatively, scroll to a specific element by ID
+        // const targetElement = document.getElementById('yourElementId');
+        // if (targetElement) {
+        //     targetElement.scrollIntoView({ behavior: 'smooth' });
+        // }
+    };
+</script>
+
+<script>
+    $(document).ready(function () {
+
+        let dataToAdd = "";
+
+        let statusOfText = true;
+
+        // Flashing text logic
+        var texts = [
+            "Hello, World!",
+            "Welcome to the File Agent!",
+            "Bring Automation to Increase Productivity!",
+            "Bore with Same File Explorer?",
+            "Let's Automate Your Work!",
+            "Perform all File Operations In Just Normal Speaking English!",
+            "Think what a File Agent can do.",
+            "File Agent is a simple tool that can automate file operations using natural language processing.",
+            "You can use it to automate file operations such as copying, moving, renaming, and deleting",
+            "You can also use it to automate file operations such as creating new files and folders",
+            "You can use it to automate file operations such as searching for files and folders",
+            "And many more!",
+            "We are continuously updating! Stay Tuned!"
+        ];
+        var index = 0;
+
+        function changeText() {
+            if(statusOfText){
+                $('#flashText').fadeOut(300, function () {
+                index = (index + 1) % texts.length; // Cycle through texts
+                $(this).text(texts[index]).fadeIn(300);
+            });
+            }else{
+                $("#flashText").slideUp();
+            }
+        }
+
+        setInterval(changeText, 3000); // Change text every 3 seconds
+
+        // Logic for appending user prompt and app response dynamically
+        $('#chat-form').on('submit', function (e) {
+            $("#flashText").hide();
+            e.preventDefault(); // Prevent form submission
+
+            // Get the user input
+            var userInput = $('#prompt').val().trim();
+
+            // Check if user input is empty
+            if (!userInput) {
+                return;
+            }
+
+            $(".prompty").slideToggle();
+
+            $(".status").text("Working");
+
+            $(".status").css({
+                "background-color":"yellowgreen", // Corrected color
+                "color":"#121C2A"
+            });
+
+            statusOfText = false;
+            $("#flashText").slideUp();
+
+            // Display user prompt in the prompt-main-container
+            const userPromptHTML = `
+                <div class="prompt-main-container">
+                    <div class="prompt-shower">
+                        <div class="by">You :</div>
+                        <div class="task">${userInput}</div>
+                    </div>
+                </div>`;
+            $('.container-messages').append(userPromptHTML);
+
+            // Clear the input box
+            $('#prompt').val('');
+
+            console.log(dataToAdd);
+
+            $.ajax({
+                url: '/',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ user_input: userInput }),
+                success: function (response) {
+                    if (response.html_response) {
+                        const appResponse = response.html_response;
+                        console.log(appResponse) // Replace with dynamic response
+                        const appResponseHTML = `
+                            <div class="process-main-container">
+                                <div class="process-shower">
+                                    <div class="by-process">Filer</div>
+                                    <div class="task pre-data">${appResponse}</div>
+                                </div>
+                            </div>`;
+                        $('.container-messages').append(appResponseHTML);
+                        // $('#response-container').html(response.html_response); // Inject the response HTML
+
+                        // Scroll to the bottom of the messages container
+                        const contentContainer = $('.container-messages');
+                                if (contentContainer.length) {
+                                    contentContainer.scrollTop(contentContainer[0].scrollHeight);
+                                } else {
+                                    console.error('Content container not found.');
+                                }
+
+                                const containerMessages = document.querySelector('.container-messages');
+                                const currentHeight = containerMessages.offsetHeight;
+                                console.log('Current height of container-messages:', currentHeight);
+                                window.scrollTo({
+                                            top: currentHeight, // Change this value to your desired scroll position
+                                            behavior: 'smooth' // Smooth scrolling
+                                        });
+
+                                function removeTags(input) {
+                                    return input.replace(/<[^>]*>/g, '');
+                                }
+        dataToAdd += removeTags(appResponse);
+
+        $(".prompty").slideToggle();
+        $("#prompt").val('').focus();
+        $(".status").text("Ready to Listen!");
+        $(".status").css({
+            "background-color":"#61DAFB", // Corrected color
+            "color":"#121C2A"
+        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.log('Error: ', error);
+                }
+            });
+
+            $(".flashing-text").css("display","none");
+            
+        });
+    });
+</script>
