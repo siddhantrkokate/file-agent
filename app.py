@@ -2,7 +2,7 @@ import os
 import google.generativeai as genai
 import re
 from flask import Flask, render_template, request, jsonify
-
+from datetime import datetime
 import fileinput
 
 def modify_line(file_path, line_number, new_data):
@@ -20,18 +20,18 @@ os.environ["GEMINI_API_KEY"] = "AIzaSyDG8JrEOnNgKYr35R1JdSEIMNGC8m9hw-k"  # Make
 # Configure the generative model using the environment variable
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+# Create the model
 generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 40,
-    "max_output_tokens": 8192,
-    "response_mime_type": "text/plain",
+  "temperature": 1,
+  "top_p": 0.95,
+  "top_k": 40,
+  "max_output_tokens": 8192,
+  "response_mime_type": "text/plain",
 }
 
-# Initialize the model
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash-8b",  # Adjust to the model you are using
-    generation_config=generation_config,
+  model_name="gemini-1.5-flash-8b",
+  generation_config=generation_config,
 )
 
 # Initialize Flask application
@@ -78,195 +78,256 @@ def home():
         if not user_input:
             return jsonify({'error': 'No user input provided'}), 400
 
-        # Open the file in read mode
-        with open("response-history.txt", 'r') as file:
-            # Read the entire content of the file and store it in a variable
-            file_response_history = file.read()
+        # Step 1
+        # Reading the Existing Data from the memory.txt file
+        with open("memory.txt", 'r') as file:
+            memory_file = file.read()
 
-        print(file_response_history)
+        # step 2
+        import os
+        # checking memory file is empty or not
+        # if yes then store Nothing. And else then do nothing
+        file_path = "memory.txt"
 
+        if os.path.exists(file_path) and os.path.getsize(file_path) == 0:
+            with open("memory.txt","w") as write_nothing:
+                write_nothing.write("Not available history")
 
+        # Step 3
         # Identify intent using the AI model
-        intent_prompt = """
-You are a smart assistant designed to identify the user's intent from a predefined list of intents.
+        identify_an_intent = generate_response(
+            f"""
+            From given input text Where compiler asked somthing and user input somthing use this text {user_input} and use this history also of memory for better accuracy {memory_file} and find the intent from this list: 1. create new file. 2.create new folder. As an output return only the index of matched element of list e.g., 1,2.... And if any element not matches then return "Y".
+            """
+        )
 
-Use the following predefined list of intents:
-1. "create file" or any related phrases indicating the creation of a file.
-2. "create folder" or any related phrases indicating the creation of a folder.
-3. "delete file" or any related phrases indicating the deletion of a file.
-
-Rules:
-1. Match the user's input to the closest intent from the list.
-2. If no match is found, return "Y".
-3. Output should be the index number of the matched intent (e.g., 1, 2, 3) or "Y" if no match is found.
-4. When identifying intent, use both the user’s current input and any previous history provided to improve accuracy.
-
-Now, based on the user's input below, identify the intent:
-User input: """ + user_input + """
-Use the following history to help identify the intent (if relevant):
-""" + file_response_history + """
-"""
-
-    
-        intent_response = generate_response(intent_prompt)
-        print(intent_response)
-
-        # store user's intent
-        intent = open("intent.txt","w")
+        # Step 4
+        # Read the data from intent file: Which is used to store the intent of user in it's index
         intent_reader = open("intent.txt","r")
-        storePre = intent_reader.read()
-
-        if storePre != intent_response:
-            intent.write(intent_response[0])
-            historyPage = open("history.txt","w")
-            historyPage.write("")
-            historyPage.close()
-            storeHistory = open("response-history.txt","w+")
-            storeHistory.write("")
-            storeHistory.close()
-
-        intent.close()
+        sotore_intent_loaded_from_file = intent_reader.read()
         intent_reader.close()
 
-        if str(intent_response[0]) == "1":  # Create file
+        # Step 5
+        # if user intent not matches with data of intent file then
+        if str(sotore_intent_loaded_from_file.strip()) != str(identify_an_intent[0].strip()):
 
-            # common instructions
-            common_instructions = f"""
-           You are a smart assistant tasked with identifying and extracting file names and folder names from the given input. Your responses should be casual and intuitive.
+            # store new intent index
+            with open("intent.txt", "w") as intent:
+                intent.write(identify_an_intent[0])
 
-            *Output Rules:
-            If only a file name is found with valid (and no folder name):
-                intension: Create file and file name: [File Name]. Ask for the folder name.
-            If only a folder name is found (and no file name):
-                intension: Create file, folder name: [Folder Name]. Ask for the file name. *if file name is not valid ask for valid one*
-            If file name and folder name both not found:
-                intension: create file. Ask for file and folder name. *If file name is not valid ask for valid one.*
-            If both file name and folder name are found:
-                intension: Create file and file name: [File Name] and folder name: [Folder Name].
-            
-            Now use this User Input and give me output: "{user_input}". and use this previous responses also {file_response_history}
+            # empty history
+            with open("history.txt", "w") as historyPage:
+                historyPage.write("")
 
-            """
-            response_create_file = generate_response(common_instructions)
-            
-            # print(response_create_file)
-            response_create_file_good = generate_response(
+            # empty the memory file for new
+            with open("memory.txt", "w") as response_history:
+                response_history.write("")
+
+
+        # Step 6 = match the intent
+
+        if str(identify_an_intent[0]) == "1":  # Create file
+
+            # step A.1
+            # use a gen prompt to store the history
+            with open("memory.txt","r") as fileRead:
+                use_memory_file_to_read_create_file_history = fileRead.read()
+
+            # generating good prompt to store in memory
+            draft_history_sentence = generate_response(
                 f"""
-                you are the sentence structurer now in this project.
-
-                Task: 
-                1. give you the user input = {response_create_file},
-                2. understand the input.
-                3. Input is the summary of found and not found things so use it and create a output which is like a message to send user.
-                3. create a meaningful sentnse which should have everything that sentence want to say.
-
-                Rules:
-                1. only craete a sentence not anything else.
-
+                Use this current Text as current input from user and compiler asked questions {user_input} and working on file creation privous converstations user's history related to this task {use_memory_file_to_read_create_file_history} from this given data understand the texts and create new history as an normal enlish text which can use used in future to understand the data user provided and asked by compiler. As an output just give the history text. Not any explanation or any extra data.
                 """
             )
 
-            file_folder_finder = generate_response(f"""
-            You are the true or false stater. You will be given a input and from that input just find the file name and folder name.
-            If file name and folder name (both) got then only show output 1.
-            And if file name and folder name not got then only show output 0.
+            # stroing draft_history_sentence in memory
+            with open("memory.txt","w") as fileRead:
+                update_memory = fileRead.write(draft_history_sentence)
 
-            Now give me output for this: {response_create_file_good}
-            """).strip()
+            # finding file name and folder name and returning index's
+            find_file_folder_name_return_index = f"""
+            You are given a text as input. Analyze it to determine which of the following conditions match. Your output should be the index of the matching condition (e.g., 1, 2, 3, etc.). Follow these rules:
 
-            print("Here"+file_folder_finder)
+Conditions:
+The text contains only a file name.
+The text contains only a folder name (default folder can be used if instructed).
+The text contains both a file name and a folder name (default folder can be used if instructed).
+The text contains neither a file name nor a folder name (default folder can be used if instructed).
+
+Now the Given input is : "{draft_history_sentence}".
+            """
+            file_folder_response_gen = generate_response(find_file_folder_name_return_index)
 
 
-            if str(file_folder_finder) == "1":
+            # checking the file name is found but why not folder
+            if str(file_folder_response_gen.strip()) == "1":
+                ask_folder_name = generate_response("Write a message to ask user: a folder name to create a file inside or ask can we use default folder to create? as an response just provide message.")
+                html_response = convert_to_html(ask_folder_name)
+                return jsonify({'html_response': html_response})
+            elif str(file_folder_response_gen.strip()) == "2":
+                # asking for folder ame
+                ask_folder_name = generate_response("Write a message to ask user: a file name to create a file with valid extension? as an response just provide message.")
+                html_response = convert_to_html(ask_folder_name)
+                return jsonify({'html_response': html_response})
+            elif str(file_folder_response_gen.strip()) == "4":
+                # asking for folder and file name both
+                ask_folder_name = generate_response("Write a message to ask user: a file name to create a file with valid extension and ask for folder name to create a file inside and give option to user he or she can use default folder to create a file? as an response just provide question. e.g., Okay! i can create a file for you but tell me the name of file with valid extension you want to create. And if you have any specific folder in your mind then please provide the name of it or type 'default' to create in default one. ")
+                html_response = convert_to_html(ask_folder_name)
+                return jsonify({'html_response': html_response})
 
-                # find file name and store it in data file.abs
-                file_name_finder = generate_response(f"""
-                "Given the following input, extract and return only the filename (including its extension) from the text. The filename can be anywhere within the input text. If no filename is found, return 'No file name found'."
-Just give me response an an output an name of file.
-Input: {response_create_file_good}
+            # find folder name and file name and store it in required_data.txt file
+            find_file_folder_name = generate_response(f"You have given the text and from it you have to find the file name with its extension and folder name and store the data in this sequence filename.extension, foldename and as an out return only the data in sequence. Given Text : {draft_history_sentence}")
+            
+            list_file_folder_name = find_file_folder_name.split(",")
+            file_name = str(list_file_folder_name[0]).strip()
+            folder_name = str(list_file_folder_name[1]).strip()
+            print("File name : " + file_name)
+            print("Folder name : "+ folder_name)
 
-                """)
+            import os
 
-                folder_name_finder = generate_response(f"""
-                You have given following input and from that return only the name of folder from the text. folder name can be anywhere within input text.
-                Just give me response as an output an name of folder.
-                Input:{response_create_file_good}
-                """)
+            def find_folder(folder_name, start_dir="/"):
+                """
+                Searches for a folder in the system starting from a given directory.
+                
+                :param folder_name: Name of the folder to find.
+                :param start_dir: Directory to start the search from (default is root "/").
+                :return: List of paths where the folder is found.
+                """
+                result = []
+                for root, dirs, _ in os.walk(start_dir):
+                    if folder_name in dirs:
+                        result.append(os.path.join(root, folder_name))
+                return result
 
-                historyPage = open("history.txt","w+")
-                historyPage.write(file_name_finder)
-                historyPage.write(folder_name_finder)
-                historyPage.close()
+            # User input for the folder name
+            search_folder = folder_name
+            start_directory = "C:/"
 
-                gen_pos_res = generate_response("Generate response of gthered all deails for creating file working on it.")
-                html_response = convert_to_html(gen_pos_res)
+            # Search for the folder
+            found_paths = find_folder(search_folder, start_directory)
 
-                with open("response-history.txt", "r") as res_his_store:
-                    existing_data = res_his_store.readlines()  # Read all lines into a list
-
-                with open("response-history.txt", "a") as res_his_store:
-                    res_his_store.write(existing_data + "\n")
-                    res_his_store.write("User Inputed: " + user_input + "\n")
-                    res_his_store.write("Response Shown To User: " + gen_pos_res + "\n")
-                return jsonify({'html_response':html_response})
+            # Display the results
+            if found_paths:
+                print(f"Folder '{search_folder}' found at:")
+                for path in found_paths:
+                    print(path)
+                path_creator_file = path + "/" + file_name
+                if os.path.exists(path_creator_file):
+                    html_response = convert_to_html(generate_response("Write a message and return as an output to say: file already existed"))
+                    with open("memory.txt","w") as make_black:
+                        make_black.write("Not available history.")
+                    return jsonify({'html_response': html_response})
+                elif open(path_creator_file,"w"):
+                    html_response = convert_to_html(generate_response("Write a message and return as an output to say: file created successfully"))
+                    try:
+                        os.startfile(path)
+                    except Exception as e:
+                        html_response = convert_to_html("Facing Problem From Server Side Please Report at siddhantrkokate@gmail.com")
+                        with open("memory.txt","w") as make_black:
+                            make_black.write("Not available history.")
+                        return jsonify({'html_response': html_response})
+                    return jsonify({'html_response': html_response})
+                else:
+                    html_response = convert_to_html(generate_response("Write a message and return as an ouput to say: Facing problem with screent shot contact siddhantrkokate@gmail.com"))
+                    return jsonify({'html_response': html_response})
             else:
-                html_response = convert_to_html(response_create_file_good)
+                html_response = convert_to_html(f"Folder '{search_folder}' not found.")
+                return jsonify({'html_response': html_response})
 
-                with open("response-history.txt", "r") as res_his_store:
-                    existing_data = res_his_store.readlines()  # Read all lines into a list
 
-                with open("response-history.txt", "a") as res_his_store:
-                    res_his_store.write(existing_data + "\n")
-                    res_his_store.write("User Inputed: " + user_input + "\n")
-                    res_his_store.write("Response Shown To User: " + response_create_file_good + "\n")
-                return jsonify({'html_response':html_response})
-
-            
+            html_response = convert_to_html(file_name)
+            return jsonify({'html_response': html_response})
             
 
-            file_name_1 = generate_response("In this given input what is the name of file tell me as itis with its extension? And return false if file name is not found! given input = "+response_create_file_good).strip()
-            folder_name_1 = generate_response("In this given input what is the name of folder? And if folder name not idetified then return false! given input = "+response_create_file_good).strip()
-            # identify the file and folder name and store
-            # storer = f"from this - {response_create_file_good} find file name and folder name. and create an list add pass each values [filename,foldername] only."
-            # playerr = generate_response(storer)
-            # print(playerr)
-
+        elif str(identify_an_intent[0]) == "2":  # Create Folder
             
+            # Using memory file to read the data
+            with open("memory.txt", "r") as memory:
+                memory_data = memory.read()
 
+            # Prompt to store the data about task in memory.
+            draft_memory_for_creating_folder_based_on_data = generate_response(
+                f"""
+                You have given a text of compiler asked and on that asked what the user has inputed {user_input} and the history of the same task but stored for you to understand the context or past data or conversation for better accuracy {memory_data} from this compiler asked and user input and history create a valid statment which says same and as an output return that statment.
+                """
+            )
 
-        
-
+            # update the existing memory
+            with open("memory.txt", "w") as memory:
+                memory.write(draft_memory_for_creating_folder_based_on_data)
             
+            # conditions
+            conditions_folder_creation = generate_response(
+                f"""
+                Analyze the given statement to determine if it specifies a folder name, a folder location, both, or neither, based on the following conditions:
+1. If only the new folder name is provided, return 1.
+2. If only the folder name is not provided, return 2.
+As output, return only the corresponding number (1, 2).
 
-        elif intent_response == "2":  # Create Folder
-            folder_name_prompt = f"From this input: '{user_input}', extract only the folder name."
-            folder_name = generate_response(folder_name_prompt)
+Given statement: {draft_memory_for_creating_folder_based_on_data}
+                """
+            ).strip()
 
-            success_message = f"Okay, creating folder '{folder_name}'."
-            html_response = convert_to_html(success_message)
+            print(conditions_folder_creation)
+
+            if str(conditions_folder_creation) == "1":
+                # folder name
+                folder_name = str(generate_response(f"You have given text: {draft_memory_for_creating_folder_based_on_data}. from it find the folder name and as an output return that folder name only.").strip())
+                try:
+
+                    path = "C:/" + folder_name
+
+                    # Check if the folder already exists
+                    if os.path.exists(path):
+                        html_response = convert_to_html(generate_response("Write a message to say folder existed and as an output return that message only"))
+                        with open("memory.txt","w") as updater:
+                            updater.write("")
+                        return jsonify({'html_response': html_response})
+                    # Create the folder
+                    os.makedirs(path, exist_ok=True)
+                    with open("memory.txt","w") as updater:
+                        updater.write("")
+                    html_response = convert_to_html(generate_response("Write a message to say new folder created and as an output return that message only."))
+                    return jsonify({'html_response': html_response})
+                except Exception as e:
+                    html_response = convert_to_html(generate_response("Write a message to say having a prblem in software ask to refer siddhantrkokate@gmail.com to help."))
+                    return jsonify({'html_response': html_response})
+
+            elif str(conditions_folder_creation) == "2":
+                message1 = generate_response("Write a message to ask user: what name new folder wants to create? as an response just provide message.")
+                html_response = convert_to_html(message1)
+                return jsonify({'html_response': html_response})
+
+
+            html_response = convert_to_html("Unkown error: 20X : <a href='mail:siddhantrkokate@gmail.com'>Contact siddhantrkokate@gmail.com</a>.")
+            with open("memory.txt","w") as updater:
+                updater.write("")
             return jsonify({'html_response': html_response})
 
-        elif intent_response == "3":  # Delete File
-            file_name_prompt = f"Extract only the file name from the following user input: '{user_input}'. If no file name is found, return 'error'."
-            file_name = generate_response(file_name_prompt)
-
-            if file_name == "error":
-                problem_message = "Error: File name not found. Please provide a valid file name for deletion."
-                html_response = convert_to_html(problem_message)
-                return jsonify({'html_response': html_response})
-            else:
-                success_message = f"Okay, deleting file '{file_name}'."
-                html_response = convert_to_html(success_message)
-                return jsonify({'html_response': html_response})
-
         else:  # Intent not identified
-            error_message = generate_response(
+
+            # load memory
+            with open("memory.txt", "r") as memory:
+                memory_data = memory.read()
+
+            # genarte memory
+            memory_gen = generate_response(
                 f"""
-                You are a smart assistant. You will need to response on given input as an human.
-                Given Input:{user_input}
+                You have given a text of compiler asked and on that asked what the user has inputed {user_input} and the history of the same task but stored for you to understand the context or past data or conversation for better accuracy {memory_data} from this compiler asked and user input and history create a valid statment which says same and as an output return that statment.
                 """
             )
-            html_response = convert_to_html(error_message)
+
+            # update memory
+            with open("memory.txt", "w") as updater:
+                updater.write(memory_gen)
+
+            # generate response = You have given data of users current chat history with you in a summary so now you have to respond on the user input: {Hello how are you}. and as an output return the respond on that question or input only. History: {used asked to help}
+            response_to_user = generate_response(
+                f"""You have given data of users current chat history with you in a summary so now you have to respond on the user input: {user_input}. and as an output return the respond on that question or input only. History: {memory_gen}"""
+            )
+
+            html_response = convert_to_html(response_to_user)
             return jsonify({'html_response': html_response})
     
     return render_template('index.html')

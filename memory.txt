@@ -1,0 +1,1 @@
+The user is requesting access to a database of algorithms and data, including a history of past interactions, to improve the accuracy and context-awareness of the model's responses, specifically for generating a funny song and understanding the history of that task.

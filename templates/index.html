@@ -349,16 +349,19 @@
             // Clear the input box
             $('#prompt').val('');
 
-            console.log(dataToAdd);
+            let latest_compiler_reponse = "";
+
+            dataModu = latest_compiler_reponse == "" ? "Nothing" : latest_compiler_reponse;
 
             $.ajax({
                 url: '/',
                 method: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({ user_input: userInput }),
+                data: JSON.stringify({ user_input: "Compiler Asked: " + dataModu + " | User Inputed: " + userInput}),
                 success: function (response) {
                     if (response.html_response) {
                         const appResponse = response.html_response;
+                        latest_compiler_reponse = response;
                         console.log(appResponse) // Replace with dynamic response
                         const appResponseHTML = `
                             <div class="process-main-container">
